@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - random-quote</title>
+  <style>
+    .cell:hover {
+      fill: black;
+    }
+
+    body {
+      text-align: center;
+    }
+
+    #title, #description {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    #title {
+      font-size: 28px;
+    }
+
+    #description {
+      font-size: 24px;
+    }
+  </style>
+
+</head>
+<body>
+
+  <div id="tooltip" style="position: absolute; visibility: hidden; background-color: lightgrey; padding: 5px; border-radius: 5px;"></div>
+
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const req = new XMLHttpRequest();
+      req.open("GET",'https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/global-temperature.json', true);
+      req.send();
+      req.onload=function(){
+        const json = JSON.parse(req.responseText);
+        const baseTemp = json.baseTemperature;
+        const varianceSet = json.monthlyVariance;
+        //console.log(varianceSet.map(d=>d.variance+baseTemp));
+        
+        const w = 1500;
+        const h = 660;
+        const padding = 60;
+        
+        const tempRange = (monthTemp) => {
+          if(monthTemp < 2.8) {
+                  return "#021E8D";
+                } else if (monthTemp < 3.9) {
+                  return "#002D62";
+                } else if (monthTemp < 5.0) {
+                  return "#72A0C1";
+                } else if (monthTemp < 6.1) {
+                  return "#7CB9E8";
+                } else if (monthTemp < 7.2) {
+                  return "#E0FFFF";
+                } else if (monthTemp < 8.3) {
+                  return "#FFFCA1";
+                } else if (monthTemp < 9.5) {
+                  return "#FEDE84";
+                } else if (monthTemp < 10.6) {
+                  return "#FFC178";
+                } else if (monthTemp < 11.7) {
+                  return "#FF8048";
+                } else if (monthTemp < 12.8) {
+                  return "#CB2312";
+                } else {
+                  return "#8C0202";
+                }
+        }
+        
+        const xScale = d3.scaleLinear()
+                          .domain([d3.min(varianceSet, (d) => d.year), d3.max(varianceSet, (d) => d.year)])
+                          .range([padding, w - padding]);
+
+        const yScale = d3.scaleLinear()
+                          .domain([12.5, 0.5])
+                          .range([h - padding, padding]);
+        
+        const xlegendScale = d3.scaleLinear()
+                              .domain([1.7, 13.9])
+                              .range([padding, 560]);
+        
+        const description = d3.select("body")
+                      .append("g")
+                      .text(`Monthly Global Land-Surface Temperature`)
+                      .attr("id", "title")
+                      .append("g")
+                      .text(`1753-2015: base temperature ${baseTemp}°C`)
+                      .attr("id", "description");
+        
+        const svg = d3.select("body")
+                      .append("svg")
+                      .attr("width", w)
+                      .attr("height", h)
+        
+        const legend = d3.select("body")
+                        .append("svg")
+                        .attr("id", "legend")
+                        .attr("width", 560)
+                        .attr("height", 50+padding);
+        
+        legend.selectAll("rect")
+              .data([2.8, 3.9, 5.0, 6.1, 7.2, 8.3, 9.5, 10.6, 11.7])
+              .enter()
+              .append("rect")
+              .attr("x", (d, i) => xlegendScale(d))
+              .attr("y", (d) => 0)
+              .attr("height", (d) => 50)
+              .attr("width", (d) => 50)
+              .attr("fill", (d)=>tempRange(d))
+        
+        svg.selectAll("rect")
+            .data(varianceSet)
+            .enter()
+            .append("rect")
+            .attr("x", (d) => xScale(d.year))
+            .attr("y", (d) => yScale(d.month)-25)
+            .attr("height", (d) => 50)
+            .attr("width", (d) => 6)
+            .attr("data-month", (d, i)=>d.month-1)
+            .attr("data-year", (d, i)=>d.year)
+            .attr("data-temp", (d, i)=>baseTemp + d.variance)
+            .attr("fill", (d)=>tempRange(baseTemp + d.variance))
+            .attr("class", "cell")
+            .on("mouseover", function(event, d) {
+                d3.select("#tooltip")
+                  .style("visibility", "visible")
+                  .attr("data-year", d.year)
+                  .text(`${d.year}`);
+            })
+            .on("mousemove", function(event) {
+                d3.select("#tooltip")
+                  .style("top", (event.pageY - 10) + "px")
+                  .style("left", (event.pageX + 10) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select("#tooltip")
+                  .style("visibility", "hidden");
+            });
+            
+        const formatTime = d3.timeFormat("%M:%S");
+        
+        const xAxis = d3.axisBottom(xScale).ticks(20).tickFormat(d => String(d));
+        const yAxis = d3.axisLeft(yScale).tickFormat(d => {
+          const months = ["January", "February", "March", "April", "May", "June",
+                        "July", "August", "September", "October", "November", "December"];
+          return months[d-1];
+        });
+        
+        const xlegendAxis = d3.axisBottom(xlegendScale);
+        
+        svg.append("g")
+          .attr("transform", "translate(0," + (h - padding) + ")")
+          .attr("id", "x-axis")
+          .call(xAxis);
+
+        svg.append("g")
+          .attr("transform", "translate(" + padding + ", 0)")
+          .attr("id", "y-axis")
+          .call(yAxis);
+        
+        svg.selectAll(".tick")
+            .each(function(d, i) {
+                d3.select(this).attr("class", `tick`);
+            });
+        
+        legend.append("g")
+              .attr("transform", "translate(0," + (50) + ")")
+              .attr("id", "x-legend-axis")
+              .call(xlegendAxis);
+      };
+    });
+  </script>
+</body>
+</html>
