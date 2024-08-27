@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - random-quote</title>
+  <style>
+    .dot:hover {
+      fill: red;
+    }
+  </style>
+
+</head>
+<body>
+
+  <div id="tooltip" style="position: absolute; visibility: hidden; background-color: lightgrey; padding: 5px; border-radius: 5px;"></div>
+
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const req = new XMLHttpRequest();
+      req.open("GET",'https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/cyclist-data.json', true);
+      req.send();
+      req.onload=function(){
+        const json = JSON.parse(req.responseText);
+        const timeset = json.map(d=> Number(d.Time.slice(0,2)) * 60 + Number(d.Time.slice(3)));
+        const yearset = json.map(d=>d.Year);
+        //const dopeset = json.map(d=>d.Doping?"with allegations":"no allegations");
+        console.log(json);
+        
+        const w = 1000;
+        const h = 600;
+        const padding = 60;
+        
+        const xScale = d3.scaleLinear()
+                          .domain([d3.min(yearset, (d) => d) - 1, d3.max(yearset, (d) => d) + 1])
+                          .range([padding, w - padding]);
+
+        const yScale = d3.scaleLinear()
+                          .domain([d3.max(timeset, (d) => d), d3.min(timeset, (d) => d)])
+                          .range([h - padding, padding]);
+        
+        const svg = d3.select("body")
+                      .append("legend")
+                      .text("legend")
+                      .attr("id", "legend")
+                      .append("svg")
+                      .attr("width", w)
+                      .attr("height", h)
+                      .attr("id", "title");
+        
+        svg.selectAll("circle")
+            .data(json)
+            .enter()
+            .append("circle")
+            .attr("cx", (d) => xScale(d.Year))
+            .attr("cy", (d) => yScale(Number(d.Time.slice(0,2)) * 60 + Number(d.Time.slice(3))))
+            .attr("data-xvalue", (d, i)=>d.Year)
+            .attr("data-yvalue", (d, i)=>new Date(Number(d.Time.slice(0,2)) * 60 * 1000 + Number(d.Time.slice(3)) * 1000))
+            .attr("r", (d, i) => 3)
+            .attr("class", "dot")
+            .on("mouseover", function(event, d) {
+                d3.select("#tooltip")
+                  .style("visibility", "visible")
+                  .attr("data-year", d.Year)
+                  .text(`${d.Name}: ${d.Time}, ${d.Year}`);
+            })
+            .on("mousemove", function(event) {
+                d3.select("#tooltip")
+                  .style("top", (event.pageY - 10) + "px")
+                  .style("left", (event.pageX + 10) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select("#tooltip")
+                  .style("visibility", "hidden");
+            });
+            
+        const formatTime = d3.timeFormat("%M:%S");
+        
+        const xAxis = d3.axisBottom(xScale).tickFormat(d => String(d));
+        const yAxis = d3.axisLeft(yScale).ticks(13).tickFormat(d => `${String(Math.floor(d/60)).padStart(2, '0')}:${String(d%60).padStart(2, '0')}`);
+        
+        svg.append("g")
+          .attr("transform", "translate(0," + (h - padding) + ")")
+          .attr("id", "x-axis")
+          .call(xAxis);
+
+        svg.append("g")
+          .attr("transform", "translate(" + padding + ", 0)")
+          .attr("id", "y-axis")
+          .call(yAxis);
+        
+        svg.selectAll(".tick")
+            .each(function(d, i) {
+                d3.select(this).attr("class", `tick`);
+            });
+      };
+    });
+  </script>
+</body>
+</html>
