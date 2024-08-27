@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - random-quote</title>
+  <style>
+    .bar:hover {
+      fill: red;
+    }
+  </style>
+
+</head>
+<body>
+
+  <div id="tooltip" style="position: absolute; visibility: hidden; background-color: lightgrey; padding: 5px; border-radius: 5px;"></div>
+
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const req = new XMLHttpRequest();
+      req.open("GET",'https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/GDP-data.json', true);
+      req.send();
+      req.onload=function(){
+        const json = JSON.parse(req.responseText);
+        const dataset = json.data;
+        const timeset = dataset.map(date => new Date(date[0]));
+        const minTime = d3.min(timeset);
+        const maxTime = d3.max(timeset);
+        
+        const w = 1000;
+        const h = 600;
+        const padding = 60;
+        
+        const xScale = d3.scaleTime()
+                          .domain([minTime, maxTime])
+                          .range([padding, w - padding]);
+
+        const yScale = d3.scaleLinear()
+                          .domain([0, d3.max(dataset, (d) => d[1])])
+                          .range([h - padding, padding]);
+        
+        const svg = d3.select("body")
+                      .append("svg")
+                      .attr("width", w)
+                      .attr("height", h)
+                      .attr("id", "title");
+        
+        svg.selectAll("rect")
+            .data(dataset)
+            .enter()
+            .append("rect")
+            .attr("x", (d, i) => xScale(new Date(d[0])))
+            .attr("y", (d, i) => yScale(d[1]))
+            .attr("width", (d, i) => 3)
+            .attr("height", (d, i) => h - yScale(d[1]) - 60)
+            .attr("fill", "navy")
+            .attr("data-date", (d, i) => d[0])
+            .attr("data-gdp", (d, i) => d[1])
+            .attr("class", "bar")
+            .on("mouseover", function(event, d) {
+                d3.select("#tooltip")
+                  .style("visibility", "visible")
+                  .attr("data-date", d[0])
+                  .text(`Date: ${d[0]}, GDP: ${d[1]}`);
+            })
+            .on("mousemove", function(event) {
+                d3.select("#tooltip")
+                  .style("top", (event.pageY - 10) + "px")
+                  .style("left", (event.pageX + 10) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select("#tooltip")
+                  .style("visibility", "hidden");
+            });
+        
+        const xAxis = d3.axisBottom(xScale);
+        const yAxis = d3.axisLeft(yScale);
+        
+        svg.append("g")
+          .attr("transform", "translate(0," + (h - padding) + ")")
+          .attr("id", "x-axis")
+          .call(xAxis);
+
+        svg.append("g")
+          .attr("transform", "translate(" + padding + ", 0)")
+          .attr("id", "y-axis")
+          .call(yAxis);
+        
+        svg.selectAll(".tick")
+            .each(function(d, i) {
+                d3.select(this).attr("class", `tick`);
+            });
+      };
+    });
+  </script>
+</body>
+</html>
