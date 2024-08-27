@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - random-quote</title>
+  <style>
+    body {
+      text-align: center;
+    }
+
+    .county:hover {
+      fill: black;
+    }
+
+    #title, #description {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    #title {
+      font-size: 28px;
+    }
+
+    #description {
+      font-size: 16px;
+    }
+  </style>
+
+</head>
+<body>
+
+  <div id="tooltip" style="position: absolute; visibility: hidden; background-color: lightgrey; padding: 5px; border-radius: 5px;"></div>
+
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const reqEdu = new XMLHttpRequest();
+      reqEdu.open("GET",'https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/for_user_education.json', true);
+      reqEdu.send();
+      reqEdu.onload=function(){
+        const reqGeo = new XMLHttpRequest();
+        reqGeo.open("GET",'https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/counties.json', true);
+        reqGeo.send();
+        reqGeo.onload=function(){
+          const jsonEdu = JSON.parse(reqEdu.responseText);
+          const jsonGeo = JSON.parse(reqGeo.responseText);
+          
+          const w = 1260;
+          const h = 660;
+          const padding = 20;
+          
+          const path = d3.geoPath();
+          
+          const color = d3.scaleQuantize()
+                          .domain([0, d3.max(jsonEdu, (d) => d.bachelorsOrHigher)])
+                          .range(d3.schemeGreens[7]);
+          
+          const counties = topojson.feature(jsonGeo, jsonGeo.objects.counties).features;
+        
+          const legendScale = d3.scaleLinear()
+                                .domain([0, d3.max(jsonEdu, (d) => d.bachelorsOrHigher)])
+                                .range([0, 300]);
+          
+          const description = d3.select("body")
+                                .append("g")
+                                .text(`United States Educational Attainment`)
+                                .attr("id", "title")
+                                .append("g")
+                                .text(`Percentage of adults age 25 and older with a bachelor's degree or higher \(2010-2014\)`)
+                                .attr("id", "description");
+
+          const legend = d3.select("body")
+                        .append("svg")
+                        .attr("id", "legend")
+                        .attr("width", 300)
+                        .attr("height", padding);
+          
+          legend.selectAll("rect")
+                .data(color.range().map(d=>color.invertExtent(d)))
+                .enter().append("rect")
+                .attr("x", d=>legendScale(d[0]))
+                .attr("y", 0)
+                .attr("width", d => legendScale(d[1]) - legendScale(d[0]))
+                .attr("height", padding-5)
+                .attr("fill", d => color(d[0]));
+          
+          const legendAxis = d3.axisBottom(legendScale)
+                            .ticks(8)
+                              .tickSize(padding)
+                              .tickValues(color.range().map(d => color.invertExtent(d)[0]))
+                              .tickFormat(d => `${d}%`);
+          
+          legend.append("g")
+                .call(legendAxis)
+                .select(".domain")
+                .remove();
+          
+          const svg = d3.select("body")
+                      .append("svg")
+                      .attr("width", w)
+                      .attr("height", h);
+
+          svg.append("g")
+            .selectAll("path")
+            .data(counties)
+            .enter().append("path")
+            .attr("d", path)
+            .attr("fill", (d) => {
+              const county = jsonEdu.find(c=> c.fips === d.id);
+              return county? color(county.bachelorsOrHigher) : "#ccc";
+            })
+            .attr("data-fips", (d)=> {
+              const county = jsonEdu.find(c=> c.fips === d.id);
+              return county? county.fips : 0;
+            })
+            .attr("data-education", (d)=>{
+              const county = jsonEdu.find(c=> c.fips === d.id);
+              return county? county.bachelorsOrHigher : 0;
+            })
+            .attr("class", "county")
+            .on("mouseover", function(event, d) {
+                const county = jsonEdu.find(c=> c.fips === d.id);
+            
+                d3.select("#tooltip")
+                  .style("visibility", "visible")
+                  .attr("data-education", county.bachelorsOrHigher)
+                  .text(`${county.bachelorsOrHigher}%`);
+            })
+            .on("mousemove", function(event) {
+                d3.select("#tooltip")
+                  .style("top", (event.pageY - 10) + "px")
+                  .style("left", (event.pageX + 10) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select("#tooltip")
+                  .style("visibility", "hidden");
+            });
+        };
+      };
+    });
+  </script>
+</body>
+</html>
