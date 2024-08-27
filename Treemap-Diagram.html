@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - random-quote</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+
+</head>
+<body>
+
+  <div id="tooltip" style="position: absolute; visibility: hidden; background-color: lightgrey; padding: 5px; border-radius: 5px;"></div>
+
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const req = new XMLHttpRequest();
+      req.open("GET",'https://cdn.freecodecamp.org/testable-projects-fcc/data/tree_map/video-game-sales-data.json', true);
+      req.send();
+      req.onload=function() {
+        const dataset = JSON.parse(req.responseText);
+        
+        //console.log(dataset.children);
+        
+        const width = 1154;
+        const height = 854;
+        
+        const color = d3.scaleOrdinal(dataset.children.map(d => d.name),  [
+      "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+      "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+      "#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5",
+      "#c49c94", "#f7b6d2", "#c7c7c7"
+    ]);
+        const format = d3.format(",d");
+        
+        const root = d3.treemap()
+          //.tile(d3.treemapSquarify)
+          .size([width, height])
+        (d3.hierarchy(dataset)
+            .sum(d=>d.value)
+            .sort((a, b)=>b.value - a.value)
+        );
+        
+        const title = d3.select("body")
+                        .append("g")
+                        .attr("width", width)
+                        .attr("height", height)
+                        .attr("id", "title")
+                        .text(`Video Game Sales`);
+        
+        const description = d3.select("body")
+                              .append("g")
+                              .attr("width", width)
+                              .attr("height", height)
+                              .attr("id", "description")
+                              .text(`${dataset.name}`);
+        
+        const svg = d3.select("body")
+                      .append("svg")
+                      .attr("width", width)
+                      .attr("height", height);
+        
+        svg
+          .selectAll("rect")
+          .data(root.leaves())
+          .enter()
+          .append("rect")
+          .attr('x', function (d) { return d.x0; })
+          .attr('y', function (d) { return d.y0; })
+          .attr('width', function (d) { return d.x1 - d.x0; })
+          .attr('height', function (d) { return d.y1 - d.y0; })
+          .style("fill", d=> d.depth > 1? color(d.parent): color(d))
+          .attr("class", "tile")
+          .attr("stroke", "white")
+          .attr("stroke-width", 3)
+          .attr("data-name", function(d){ return d.data.name })
+          .attr("data-category", function(d){ return d.data.category })
+          .attr("data-value", function(d){ return d.data.value })
+          .on("mouseover", function(event, d) {
+                d3.select("#tooltip")
+                  .style("visibility", "visible")
+                  .attr("data-name", d.data.name )
+                  .attr("data-category", d.data.category )
+                  .attr("data-value", d.data.value )
+                  .text(`Name: ${d.data.name}\nCategory: ${d.data.category}\nValue: ${d.data.value}`);
+            })
+            .on("mousemove", function(event) {
+                d3.select("#tooltip")
+                  .style("top", (event.pageY - 10) + "px")
+                  .style("left", (event.pageX + 10) + "px");
+            })
+            .on("mouseout", function() {
+                d3.select("#tooltip")
+                  .style("visibility", "hidden");
+            });
+        
+        svg
+          .selectAll("text")
+          .data(root.leaves())
+          .enter()
+          .append("text")
+          .attr("x", function(d){ return d.x0+5})
+          .attr("y", function(d){ return d.y0+20}) 
+          .text(function(d){ return d.data.name })
+          .attr("font-size", "14px");
+        
+        const legend = d3.select("body")
+                          .append("svg")
+                          .attr("width", width)
+                          .attr("height", height)
+                          .attr("id", "legend");
+        
+        
+        legend.selectAll("rect")
+                .data(dataset.children)
+                .enter().append("rect")
+                .attr("x", (d, i) => 20 + 120 * (i % 3))
+                .attr("y", (d, i) => 20 + 40 * Math.floor(i / 3))
+                .attr("width", d => 20)
+                .attr("height", d => 20)
+                .attr("fill", d=> color(d.name))
+                .attr("class", "legend-item");
+        
+        const legendtextset = root.children.map(leaf => leaf.data.name);
+        //console.log(legendtextset);
+        
+        legend.selectAll("text")
+                .data(legendtextset)
+                .enter().append("text")
+                .attr("x", (d, i) => 60 + 120 * (i % 3))
+                .attr("y", (d, i) => 35 + 40 * Math.floor(i / 3))
+                .text(function(d){return d});
+      };
+    });
+  </script>
+</body>
+</html>
